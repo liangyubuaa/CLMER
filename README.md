@@ -14,10 +14,10 @@ Emotion recognition plays a crucial role in human-computer interaction and affec
 ## Reference
 
 ```
-@article{wang2025milmer,
+<!-- @article{wang2025milmer,
   title={Milmer: a Framework for Multiple Instance Learning based Multimodal Emotion Recognition},
   author={Wang, Zaitian and He, Jian and Liang, Yu and Hu, Xiyuan and Peng, Tianhao and Wang, Kaixin and Wang, Jiakai and Zhang, Chenlong and Zhang, Weili and Niu, Shuang and others},
   journal={arXiv preprint arXiv:2502.00547},
   year={2025}
-}
+}-->
 ```
