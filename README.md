@@ -1,5 +1,5 @@
 # CLMER
-![Preview](./architecture.pdf)
+![Preview](./architecture.png)
 
 ## Abstract
 
