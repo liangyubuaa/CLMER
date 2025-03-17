@@ -8,7 +8,7 @@ Emotion recognition plays a crucial role in human-computer interaction and affec
 ## Requirements
 
 - Python 3.8
-- For other dependencies, see [requirements.txt](./requirements.txt)
+- For dependencies, see [requirements.txt](./requirements.txt)
 
 
 ## Reference
