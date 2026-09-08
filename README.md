@@ -1,6 +1,6 @@
 # 🧠 CLMER: Contrastive Learning-based Multi-modal Emotion Recognition
 
-[![Paper](https://img.shields.io/badge/Paper-TNNLS%20-blue)](https://ieeexplore.ieee.org/)
+[![Paper](https://img.shields.io/badge/Paper-TNNLS%20-blue)](https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=5962385)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Code](https://img.shields.io/badge/Code-GitHub-black)](https://github.com/liangyubuaa/CLMER)
