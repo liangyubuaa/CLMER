@@ -53,20 +53,18 @@ CLMER consists of three sequential modules:
 
 ```
 CLMER/
-├── .offline-markdown-preview/          # Offline markdown preview resources
-│   └── remote-images/                  # Cached remote images
-├── config_files/                       # ⚙️ Configuration files
-│   ├── deap9classphysio_Configs.py     # DEAP 9‑class configuration
-│   └── amigos4classphysio_Configs.py   # AMIGOS 4‑class configuration
+├── config_files/                       # ⚙️ Configuration files for datasets
+│   ├── deap9classphysio_Configs.py     # DEAP 9-class config
+│   └── amigos4classphysio_Configs.py   # AMIGOS 4-class config
 ├── dataloader/                         # 📂 Data loading utilities
 ├── models/                             # 🧠 Core model implementations
 │   ├── attention.py                    # Attention mechanisms
 │   ├── encoder.py                      # Feature encoders
-│   ├── fusion.py                       # Multi‑modal fusion module
+│   ├── fusion.py                       # Multi-modal fusion module
 │   ├── loss.py                         # Contrastive loss functions
-│   └── timeseries.py                   # Time‑series processing
+│   └── timeseries.py                   # Time-series processing
 ├── modules/                            # 🔧 Reusable building blocks
-│   ├── multihead_attention.py          # Multi‑head attention
+│   ├── multihead_attention.py          # Multi-head attention
 │   ├── position_embedding.py           # Positional encoding
 │   └── transformer.py                  # Transformer modules
 ├── src/                                # 📜 Main scripts
@@ -76,11 +74,8 @@ CLMER/
 │   ├── confusion_matrix.py             # Confusion matrix utilities
 │   ├── eval_metrics.py                 # Evaluation metrics
 │   └── utils.py                        # Helper functions
-├── .gitignore                          # Git ignore file
 ├── clmain.py                           # 🚀 Entry point for feature extraction phase
-├── figure1.png                         # 📊 Framework overview figure
 ├── fmain.py                            # 🚀 Entry point for fusion phase
-├── README.md                           # 📖 Project documentation
 └── requirements.txt                    # 📦 Dependency list
 ```
 
