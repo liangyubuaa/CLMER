@@ -32,9 +32,9 @@ class timeseries(nn.Module):
 
         batch = z_aug1.shape[0]
         t_samples = torch.randint(seq_len - self.timestep, size=(1,)).long().to(
-            self.device)  # randomly pick time stamps
+            self.device)
 
-        nce = 0  # average over timestep and batch
+        nce = 0  
         encode_samples = torch.empty((self.timestep, batch, self.num_channels)).float().to(self.device)
 
         for i in np.arange(1, self.timestep + 1):

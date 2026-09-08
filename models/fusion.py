@@ -40,15 +40,13 @@ class fusionModel(nn.Module):
                 combined_dim = self.d_v1
         elif self.partial_mode == 2:
             if self.ponly and self.v2only:
-                combined_dim = 2 * (self.d_p + self.d_v2)
+                combined_dim = self.d_p + self.d_v2
             if self.ponly and self.v1only:
-                combined_dim = 2 * (self.d_p + self.d_v1)
+                combined_dim = self.d_p + self.d_v1
             if self.v2only and self.v1only:
-                combined_dim = 2 * (self.d_v2 + self.d_v1)
-            else:
-                combined_dim = 2 * (self.d_p + self.d_v2 + self.d_v1)
+                combined_dim = self.d_v2 + self.d_v1
         else:
-            combined_dim = 2 * (self.d_p + self.d_v2 + self.d_v1)#300
+            combined_dim = 2 * (self.d_p + self.d_v2 + self.d_v1)#
         output_dim = hyp_params.output_dim       
 
 
@@ -85,19 +83,6 @@ class fusionModel(nn.Module):
         self.proj2 = nn.Linear(combined_dim, combined_dim)
         self.out_layer = nn.Linear(combined_dim, output_dim)
     def get_network(self, self_type='p', layers=-1):
-        # if self_type == 'l':
-        #     embed_dim, attn_dropout = self.d_p, self.attn_dropout
-        # elif self_type == 'a':
-        #     embed_dim, attn_dropout = self.d_v2, self.attn_dropout
-        # elif self_type == 'v':
-        #     embed_dim, attn_dropout = self.d_v1, self.attn_dropout
-        # elif self_type in ['al','la']:
-        #     embed_dim, attn_dropout = self.d_p, self.attn_dropout
-        # elif self_type in ['lv','vl']:
-        #     embed_dim, attn_dropout = self.d_p, self.attn_dropout
-        # elif self_type in ['lv','vl']:
-        #     embed_dim, attn_dropout = self.d_p, self.attn_dropout
-        # print(self_type)
         if self_type in ['p', 'v2p', 'v1p']:
             embed_dim, attn_dropout = self.d_p, self.attn_dropout
         elif self_type in ['v2', 'pv2', 'v1v2']:
@@ -151,16 +136,16 @@ class fusionModel(nn.Module):
         proj_x_v2 = x_v2 if self.orig_d_v2 == self.d_v2 else self.proj_v2(x_v2)
         proj_x_v1 = x_v1 if self.orig_d_v1 == self.d_v1 else self.proj_v1(x_v1)
         # print("projected shape:")
-        # print(proj_x_l.shape)
-        # print(proj_x_a.shape)
-        # print(proj_x_v.shape)
+        # print(proj_x_p.shape)
+        # print(proj_x_v2.shape)
+        # print(proj_x_v1.shape)
         proj_x_v2 = proj_x_v2.permute(2, 0, 1)
         proj_x_v1 = proj_x_v1.permute(2, 0, 1)
         proj_x_p = proj_x_p.permute(2, 0, 1)
         # print("final shape:")
-        # print(proj_x_l.shape)
-        # print(proj_x_a.shape)
-        # print(proj_x_v.shape)
+        # print(proj_x_p.shape)
+        # print(proj_x_v2.shape)
+        # print(proj_x_v1.shape)
         if self.partial_mode == 1:
             if self.ponly:
                 h_ps = self.trans_p_mem(proj_x_p)

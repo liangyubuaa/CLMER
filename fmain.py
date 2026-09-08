@@ -3,7 +3,7 @@ import argparse
 from src.utils import *
 from torch.utils.data import DataLoader
 from src import ftrain
-
+import time
 
 parser = argparse.ArgumentParser(description='Cross-Modal attention fusion')
 parser.add_argument('-f', default='', type=str)
@@ -49,7 +49,7 @@ parser.add_argument('--lr', type=float, default=1e-3,
                     help='initial learning rate (default: 1e-3)')
 parser.add_argument('--optim', type=str, default='Adam',
                     help='optimizer to use (default: Adam)')
-parser.add_argument('--num_epochs', type=int, default=300,
+parser.add_argument('--num_epochs', type=int, default=200,
                     help='number of epochs (default: 40)')
 parser.add_argument('--when', type=int, default=20,
                     help='when to decay learning rate (default: 20)')
@@ -66,6 +66,8 @@ parser.add_argument('--name', type=str, default='fusion',
 parser.add_argument('--check', action='store_true', default=False,
                     help='name of the trial')
 args = parser.parse_args()
+
+
 
 torch.manual_seed(args.seed)
 dataset = str.lower(args.dataset.strip())
@@ -95,6 +97,10 @@ class_dict = {
                        '[3,6)&[1,3)','[3,6)&[3,6)','[3,6)&[6,9]',
                        '[6,9]&[1,3)','[6,9]&[3,6)','[6,9]&[6,9]'],
     'amigos4class': ['LVLA','LVHA','HVLA','HVHA'],
+    'amigos2class': ['LVLA','LVHA','HVLA','HVHA'],
+    'amigos2classa': ['LVLA','LVHA','HVLA','HVHA'],
+    'amigos2classv': ['LVLA','LVHA','HVLA','HVHA'],
+    'deap4class':['LVLA','LVHA','HVLA','HVHA'],
     'amigos9class':['[1,3)&[1,3)','[1,3)&[3,6)','[1,3)&[6,9]',
                        '[3,6)&[1,3)','[3,6)&[3,6)','[3,6)&[6,9]',
                        '[6,9]&[1,3)','[6,9]&[3,6)','[6,9]&[6,9]'],
@@ -114,6 +120,7 @@ if torch.cuda.is_available():
 hyp_params = args
 hyp_params.dataset = dataset[:-1]
 hyp_params.data_folder = os.path.join(hyp_params.data_path, dataset)
+hyp_params.startTime = time.time()
 
 print("Start loading the data....")
 print(dataset)
@@ -130,6 +137,7 @@ train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=False)
 valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=False)
 test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
+
 hyp_params.orig_d_p, hyp_params.orig_d_v2, hyp_params.orig_d_v1 = train_data.get_dim()
 hyp_params.p_len, hyp_params.v2_len, hyp_params.v1_len = train_data.get_seq_len()
 hyp_params.layers = layers
@@ -139,19 +147,24 @@ hyp_params.n_train, hyp_params.n_valid, hyp_params.n_test = len(train_data), len
 hyp_params.model = str.upper(args.model.strip())
 hyp_params.index = dataset[len(dataset)-1]
 
+
+
 for key in output_dim_dict:
     if key in dataset:
         hyp_params.output_dim = output_dim_dict.get(key, 1)
+        print("ouputdim",hyp_params.output_dim)
         break
 
 for key in criterion_dict:
     if key in dataset:
         hyp_params.criterion = criterion_dict.get(key, 'CrossEntropyLoss')
+        print("criterion",hyp_params.criterion)
         break
 
 for key in class_dict:
     if key in dataset:
         hyp_params.class_name = class_dict.get(key,'deap9class0')
+        print("class_name",hyp_params.class_name)
         break
 
 mode =''
@@ -163,4 +176,7 @@ if args.v2only:
     mode = mode + 'v2'
 hyp_params.mode = mode
 if __name__ == '__main__':
+
     test_loss = ftrain.initiate(hyp_params, train_loader, valid_loader, test_loader)
+    hyp_params.endTime = time.time()
+    print(hyp_params.endTime - hyp_params.startTime)

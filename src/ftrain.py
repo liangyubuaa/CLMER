@@ -18,11 +18,8 @@ from src.eval_metrics import *
 import tensorboard
 from torch.utils.tensorboard import SummaryWriter
 from src.confusion_matrix import make_confusion_matrix
-####################################################################
-#
-# Construct the model and the CTC module (which may not be needed)
-#
-####################################################################
+from torchinfo import summary
+
 
 def initiate(hyp_params, train_loader, valid_loader, test_loader):
     model = fusion.fusionModel(hyp_params)
@@ -42,22 +39,19 @@ def initiate(hyp_params, train_loader, valid_loader, test_loader):
     return train_model(settings, hyp_params, train_loader, valid_loader, test_loader)
 
 
-####################################################################
-#
-# Training and evaluation scripts
-#
-####################################################################
+
 
 def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
     model = settings['model']
     optimizer = settings['optimizer']
     criterion = settings['criterion']    
     scheduler = settings['scheduler']
-    
+
     writer = SummaryWriter(log_dir=f'logs/{hyp_params.name}{hyp_params.mode}{hyp_params.index}')
 
     # text, audio, vision, eval_attr = text.cuda(), audio.cuda(), vision.cuda(), eval_attr.cuda()
     dataset = hyp_params.dataset
+    paramcal = 1
     def train(model, optimizer, criterion):
         if hyp_params.check:
             model = load_model(hyp_params, name=hyp_params.name+str(hyp_params.num_epochs)+hyp_params.mode)
@@ -70,6 +64,11 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         num_batches = hyp_params.n_train // hyp_params.batch_size
         proc_loss, proc_size = 0, 0
         start_time = time.time()
+
+        # 额外变量：吞吐量统计
+        throughput_list = []
+        warmup_batches = 10  
+        nonlocal paramcal
         for i_batch, (batch_X, batch_Y, batch_META) in enumerate(train_loader):
             sample_ind, physio, vision2, vision1 = batch_X
             # print("train function:")
@@ -88,13 +87,28 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
                     eval_attr = eval_attr.long() 
             
             batch_size = physio.size(0)            
-                
+            
+
             combined_loss = 0
             net = model
-
+            if paramcal == 1:
+                # flops, params = profile(model, inputs=(physio, vision2, vision1))
+                # print(f"Params: {params / 1e6:.2f}M")
+                # print(f"FLOPs: {flops / 1e9:.2f}G")    # 转成十亿
+                # torchinfo occasionally fails on custom modules; don't let
+                # a summary error stop training.
+                try:
+                    summary(model, input_data=(physio, vision2, vision1))
+                except Exception as e:
+                    print("torchinfo summary failed, continuing training:", e)
+                paramcal = 0
             # cross attention
             if torch.isnan(physio).any():
                 print("wrong")
+            ##
+            torch.cuda.synchronize()
+            t0 = time.time()
+            ##
             preds, hiddens = net(physio, vision2, vision1)
             
             preds = preds.view(-1,hyp_params.output_dim)
@@ -106,6 +120,15 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
                 
             torch.nn.utils.clip_grad_norm_(model.parameters(), hyp_params.clip)
             optimizer.step()
+
+            #
+            torch.cuda.synchronize()
+            t1 = time.time()
+            if i_batch >= warmup_batches:
+                throughput_list.append(batch_size / (t1 - t0))
+                # print(f"epoch throughput:{sum(throughput_list)/len(throughput_list)}")
+
+            #
             proc_loss += raw_loss.item() * batch_size
             proc_size += batch_size
             epoch_loss += combined_loss.item() * batch_size
@@ -117,7 +140,7 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
                 proc_loss, proc_size = 0, 0
                 start_time = time.time()
                 
-        return epoch_loss / hyp_params.n_train
+        return epoch_loss / hyp_params.n_train, throughput_list
 
     def evaluate(model, criterion, test=False):
         model.eval()
@@ -162,9 +185,26 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         return avg_loss, results, truths
     active_time = datetime.now()
     best_valid = 1e8
+    #
+    throughput_all_epochs = []
+    #
+    # x1 = torch.randn(40, 128, 40).cpu()
+    # x2 = torch.randn(40, 68, 3).cpu()
+    # x3 = torch.randn(40, 17, 2).cpu()
+    # model = model.cpu()
+    # # flops, params = profile(model, inputs=(x1, x3, x2))
+    # # print(f"Params: {params / 1e6:.2f}M")
+    # # print(f"FLOPs: {flops / 1e9:.2f}G")    # 转成十亿
+    # summary(model, input_data=(x1, x2, x3), device='cpu')
+    best_acc = 0.0
+    best_f1 = 0.0
     for epoch in range(1, hyp_params.num_epochs+1):
         start = time.time()
-        train_loss = train(model, optimizer, criterion)
+        #
+        train_loss, epoch_throughput = train(model, optimizer, criterion)
+        throughput_all_epochs.append(epoch_throughput)
+        print(f"epoch throughput:{sum(epoch_throughput)/len(epoch_throughput)}")
+        #
         if hyp_params.check:
             return
         val_loss, val_results, val_truths = evaluate(model, criterion, test=False)
@@ -179,20 +219,26 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         print("-"*50)
         
         print("Valid Results")
-        valid_acc, _ = eval_private(val_results, val_truths)
+        valid_acc, valid_f1 = eval_private(val_results, val_truths)
         print("Test Results")
-        test_acc, _= eval_private(test_results, test_truths)
+        test_acc, test_f1= eval_private(test_results, test_truths)
         sys.stdout.flush()
         writer.add_scalar('Valid Accuracy', valid_acc, epoch)
         writer.add_scalar('Test Accuracy', test_acc, epoch)
+        if test_acc > best_acc:
+            best_acc = test_acc
+        if test_f1 > best_f1:
+            best_f1 = test_f1
         if epoch == hyp_params.num_epochs:
             make_confusion_matrix(test_truths, test_results, hyp_params.class_name, dataset, hyp_params.index, hyp_params.mode)
         
         if val_loss < best_valid:
             print(f"PRIVATE TRAINED MODEL SAVED IN {hyp_params.name}{hyp_params.num_epochs}{hyp_params.mode}.pt!")
-            save_model(hyp_params, model, name=hyp_params.name+str(hyp_params.num_epochs)+hyp_params.mode)
+            save_model(model, name=hyp_params.name+str(hyp_params.num_epochs)+hyp_params.mode)
             best_valid = val_loss
-    model = load_model(hyp_params, name=hyp_params.name+str(hyp_params.num_epochs)+hyp_params.mode)
+    print(f"Final Best Valid Accuracy: {best_acc:.4f}")
+    print(f"Final Best Valid F1: {best_f1:.4f}")
+    model = load_model(name=hyp_params.name+str(hyp_params.num_epochs)+hyp_params.mode)
     _, results, truths = evaluate(model, criterion, test=True)
     # print(f"result:{results.shape}")
     # print(f"truths:{truths.shape}")
@@ -208,4 +254,9 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
     print(active_time)
     print("  -END TIME")
     print(end_time)
+# 展开嵌套列表
+    flat_throughput = [item for sublist in throughput_all_epochs for item in sublist]
+    final_avg_throughput = sum(flat_throughput) / len(flat_throughput)
+    print(f"Final Avg Throughput over {hyp_params.num_epochs} epochs: {final_avg_throughput:.2f} samples/sec")
+
     writer.close()

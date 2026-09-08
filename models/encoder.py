@@ -42,3 +42,29 @@ class base_Model(nn.Module):
         logits = self.logits(x_flat)
         #print("logits.shape:",logits.shape)
         return logits, x
+
+
+class SampleProjector(nn.Module):
+    """Sample-level (SimCLR-style) projection head applied directly on the encoder features.
+
+    Used by the "simclr" sample-loss mode: pools the encoder output
+    [B, final_out_channels, features_len] to a per-sample representation and
+    projects it so NT-Xent can be computed on the sample-level representation
+    (true SimCLR sample loss), rather than on the temporal module's context
+    vector. Output dim is final_out_channels // 4 to match temp_cont_feat, so
+    the same NTXentLoss can be reused unchanged.
+    """
+
+    def __init__(self, configs):
+        super(SampleProjector, self).__init__()
+        in_dim = configs.final_out_channels
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, in_dim // 2),
+            nn.BatchNorm1d(in_dim // 2),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_dim // 2, in_dim // 4),
+        )
+
+    def forward(self, x):              # x: [B, C, L]
+        h = x.mean(dim=2)              # global average pool -> [B, C]
+        return self.net(h)
